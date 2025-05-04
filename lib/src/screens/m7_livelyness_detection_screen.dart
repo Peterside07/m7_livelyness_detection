@@ -147,7 +147,56 @@ class _MLivelyness7DetectionScreenState
       setState(() {});
     });
   }
-  Future<void> _processCameraImage(CameraImage cameraImage) async {
+
+  // Future<void> _processCameraImage(CameraImage cameraImage) async {
+  //   final WriteBuffer allBytes = WriteBuffer();
+  //   for (final Plane plane in cameraImage.planes) {
+  //     allBytes.putUint8List(plane.bytes);
+  //   }
+  //   final bytes = allBytes.done().buffer.asUint8List();
+
+  //   final Size imageSize = Size(
+  //     cameraImage.width.toDouble(),
+  //     cameraImage.height.toDouble(),
+  //   );
+
+  //   final camera = availableCams[_cameraIndex];
+  //   final imageRotation = InputImageRotationValue.fromRawValue(
+  //     camera.sensorOrientation,
+  //   );
+  //   if (imageRotation == null) return;
+
+  //   final inputImageFormat = InputImageFormatValue.fromRawValue(
+  //     cameraImage.format.raw,
+  //   );
+  //   if (inputImageFormat == null) return;
+
+  //   final planeData = cameraImage.planes.map(
+  //     (Plane plane) {
+  //       return InputImagePlaneMetadata(
+  //         bytesPerRow: plane.bytesPerRow,
+  //         height: plane.height,
+  //         width: plane.width,
+  //       );
+  //     },
+  //   ).toList();
+
+  //   final inputImageData = InputImageData(
+  //     size: imageSize,
+  //     imageRotation: imageRotation,
+  //     inputImageFormat: inputImageFormat,
+  //     planeData: planeData,
+  //   );
+
+  //   final inputImage = InputImage.fromBytes(
+  //     bytes: bytes,
+  //     inputImageData: inputImageData,
+  //   );
+
+  //   _processImage(inputImage);
+  // }
+
+    InputImage _convertCameraImage(CameraImage cameraImage, CameraDescription camera) {
     final WriteBuffer allBytes = WriteBuffer();
     for (final Plane plane in cameraImage.planes) {
       allBytes.putUint8List(plane.bytes);
@@ -159,36 +208,27 @@ class _MLivelyness7DetectionScreenState
       cameraImage.height.toDouble(),
     );
 
-    final camera = availableCams[_cameraIndex];
-    final imageRotation = InputImageRotationValue.fromRawValue(
-      camera.sensorOrientation,
-    );
-    if (imageRotation == null) return;
-
-    const inputImageFormat = InputImageFormat.nv21; 
-
-    final inputImageMetadata = InputImageMetadata(
-      size: imageSize,
-      rotation: imageRotation,
-      format: inputImageFormat,
-      bytesPerRow: cameraImage.planes[0].bytesPerRow,
-    );
-
-    // Create InputImage with the updated metadata
-    final inputImage = InputImage.fromBytes(
+    return InputImage.fromBytes(
       bytes: bytes,
-      metadata: inputImageMetadata,
+      metadata: InputImageMetadata(
+        size: imageSize,
+        rotation: InputImageRotation.rotation90deg,
+        format: InputImageFormat.nv21,
+        bytesPerRow: cameraImage.planes.first.bytesPerRow,
+      ),
     );
-
-    _processImage(inputImage);
   }
 
+    Future<void> _processCameraImage(CameraImage cameraImage) async {
+    final camera = availableCams[_cameraIndex];
+    final inputImage = _convertCameraImage(cameraImage, camera);
+    await _processImage(inputImage);
+  }
 
   Future<void> _processImage(InputImage inputImage) async {
-    if (_isBusy) {
-      return;
-    }
+    if (_isBusy) return;
     _isBusy = true;
+
     final faces = await M7MLHelper.instance.processInputImage(inputImage);
 
     if (inputImage.metadata?.size != null && inputImage.metadata?.rotation != null) {
@@ -213,31 +253,81 @@ class _MLivelyness7DetectionScreenState
             ),
           ),
         );
-        if (_isProcessingStep &&
-            _steps[_stepsKey.currentState?.currentIndex ?? 0].step ==
-                M7LivelynessStep.blink) {
+
+        if (_isProcessingStep && _steps[_stepsKey.currentState?.currentIndex ?? 0].step == M7LivelynessStep.blink) {
           if (_didCloseEyes) {
             if ((faces.first.leftEyeOpenProbability ?? 1.0) < 0.75 &&
                 (faces.first.rightEyeOpenProbability ?? 1.0) < 0.75) {
-              await _completeStep(
-                step: _steps[_stepsKey.currentState?.currentIndex ?? 0].step,
-              );
+              await _completeStep(step: _steps[_stepsKey.currentState?.currentIndex ?? 0].step);
             }
           }
         }
-        _detect(
-          face: faces.first,
-          step: _steps[_stepsKey.currentState?.currentIndex ?? 0].step,
-        );
+
+        _detect(face: faces.first, step: _steps[_stepsKey.currentState?.currentIndex ?? 0].step);
       }
     } else {
       _resetSteps();
     }
+
     _isBusy = false;
-    if (mounted) {
-      setState(() {});
-    }
+    if (mounted) setState(() {});
   }
+
+  // Future<void> _processImage(InputImage inputImage) async {
+  //   if (_isBusy) {
+  //     return;
+  //   }
+  //   _isBusy = true;
+  //   final faces = await M7MLHelper.instance.processInputImage(inputImage);
+
+  //   if (inputImage.inputImageData?.size != null &&
+  //       inputImage.inputImageData?.imageRotation != null) {
+  //     if (faces.isEmpty) {
+  //       _resetSteps();
+  //     } else {
+  //       final firstFace = faces.first;
+  //       final painter = M7FaceDetectorPainter(
+  //         firstFace,
+  //         inputImage.inputImageData!.size,
+  //         inputImage.inputImageData!.imageRotation,
+  //       );
+  //       _customPaint = CustomPaint(
+  //         painter: painter,
+  //         child: Container(
+  //           color: Colors.transparent,
+  //           height: double.infinity,
+  //           width: double.infinity,
+  //           margin: EdgeInsets.only(
+  //             top: MediaQuery.of(context).padding.top,
+  //             bottom: MediaQuery.of(context).padding.bottom,
+  //           ),
+  //         ),
+  //       );
+  //       if (_isProcessingStep &&
+  //           _steps[_stepsKey.currentState?.currentIndex ?? 0].step ==
+  //               M7LivelynessStep.blink) {
+  //         if (_didCloseEyes) {
+  //           if ((faces.first.leftEyeOpenProbability ?? 1.0) < 0.75 &&
+  //               (faces.first.rightEyeOpenProbability ?? 1.0) < 0.75) {
+  //             await _completeStep(
+  //               step: _steps[_stepsKey.currentState?.currentIndex ?? 0].step,
+  //             );
+  //           }
+  //         }
+  //       }
+  //       _detect(
+  //         face: faces.first,
+  //         step: _steps[_stepsKey.currentState?.currentIndex ?? 0].step,
+  //       );
+  //     }
+  //   } else {
+  //     _resetSteps();
+  //   }
+  //   _isBusy = false;
+  //   if (mounted) {
+  //     setState(() {});
+  //   }
+  // }
 
   Future<void> _completeStep({
     required M7LivelynessStep step,
