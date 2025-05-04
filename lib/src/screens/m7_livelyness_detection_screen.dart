@@ -196,28 +196,50 @@ class _MLivelyness7DetectionScreenState
   //   _processImage(inputImage);
   // }
 
-    InputImage _convertCameraImage(CameraImage cameraImage, CameraDescription camera) {
-    final WriteBuffer allBytes = WriteBuffer();
-    for (final Plane plane in cameraImage.planes) {
-      allBytes.putUint8List(plane.bytes);
-    }
-    final bytes = allBytes.done().buffer.asUint8List();
-
-    final Size imageSize = Size(
-      cameraImage.width.toDouble(),
-      cameraImage.height.toDouble(),
-    );
-
-    return InputImage.fromBytes(
-      bytes: bytes,
-      metadata: InputImageMetadata(
-        size: imageSize,
-        rotation: InputImageRotation.rotation90deg,
-        format: InputImageFormat.nv21,
-        bytesPerRow: cameraImage.planes.first.bytesPerRow,
-      ),
-    );
+InputImage _convertCameraImage(CameraImage cameraImage, CameraDescription camera) {
+  final WriteBuffer allBytes = WriteBuffer();
+  for (final Plane plane in cameraImage.planes) {
+    allBytes.putUint8List(plane.bytes);
   }
+  final bytes = allBytes.done().buffer.asUint8List();
+
+  final Size imageSize = Size(
+    cameraImage.width.toDouble(),
+    cameraImage.height.toDouble(),
+  );
+
+  // Map sensor orientation (0, 90, 180, 270) to ML Kit enum
+  InputImageRotation imageRotation;
+  switch (camera.sensorOrientation) {
+    case 0:
+      imageRotation = InputImageRotation.rotation0deg;
+      break;
+    case 90:
+      imageRotation = InputImageRotation.rotation90deg;
+      break;
+    case 180:
+      imageRotation = InputImageRotation.rotation180deg;
+      break;
+    case 270:
+      imageRotation = InputImageRotation.rotation270deg;
+      break;
+    default:
+      imageRotation = InputImageRotation.rotation0deg;
+  }
+
+  // This format typically works on Android (NV21 = YUV420)
+  const inputImageFormat = InputImageFormat.nv21;
+
+  return InputImage.fromBytes(
+    bytes: bytes,
+    metadata: InputImageMetadata(
+      size: imageSize,
+      rotation: imageRotation,
+      format: inputImageFormat,
+      bytesPerRow: cameraImage.planes.first.bytesPerRow,
+    ),
+  );
+}
 
     Future<void> _processCameraImage(CameraImage cameraImage) async {
     final camera = availableCams[_cameraIndex];
