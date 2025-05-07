@@ -455,7 +455,7 @@ Future<void> _processImage(InputImage inputImage) async {
         Center(
           child: cameraView,
         ),
-        if (_customPaint != null) _customPaint!,
+     //   if (_customPaint != null) _customPaint!,
         M7LivelynessDetectionStepOverlay(
           key: _stepsKey,
           steps: _steps,
