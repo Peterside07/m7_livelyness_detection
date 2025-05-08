@@ -135,7 +135,7 @@ class _MLivelyness7DetectionScreenState
     // });
     _cameraController = CameraController(
       camera,
-      ResolutionPreset.high,
+      ResolutionPreset.low,
       enableAudio: false,
     );
     _cameraController?.initialize().then((_) {
@@ -333,9 +333,9 @@ Future<void> _processImage(InputImage inputImage) async {
           (p0) => p0 is M7BlinkDetectionThreshold,
         ) as M7BlinkDetectionThreshold?;
         if ((face.leftEyeOpenProbability ?? 1.0) <
-                (blinkThreshold?.leftEyeProbability ?? 0.25) &&
+                (blinkThreshold?.leftEyeProbability ?? 0.4) &&
             (face.rightEyeOpenProbability ?? 1.0) <
-                (blinkThreshold?.rightEyeProbability ?? 0.25)) {
+                (blinkThreshold?.rightEyeProbability ?? 0.4)) {
           _startProcessing();
           if (mounted) {
             setState(
